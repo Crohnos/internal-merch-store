@@ -33,6 +33,8 @@ To address this, we've implemented a database seeding script that initializes th
    - **Root Directory**: `backend`
    - **Runtime**: `Node`
    - **Build Command**: `npm install && npm run build && npm run seed`
+   
+   ⚠️ **Note**: For this command to work correctly, `seed` script in package.json must use the compiled JavaScript (`node dist/scripts/seed.js`) rather than the TypeScript source.
    - **Start Command**: `npm start`
    - **Instance Type**: Free
 
