@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { itemApi, itemTypeApi } from '../../../services/api';
-import { Item, ItemType } from '../../../types/api';
+import { itemApi, itemTypeApi, sizeApi } from '../../../services/api';
+import { Item, ItemType, Size, ItemWithAvailability, ItemAvailability } from '../../../types/api';
 
 interface ItemsFormProps {
   mode: 'create' | 'edit';
-  initialData?: Item;
+  initialData?: Item | ItemWithAvailability;
   onSubmitSuccess: () => void;
 }
 
@@ -16,36 +16,89 @@ const ItemsForm: React.FC<ItemsFormProps> = ({ mode, initialData, onSubmitSucces
   const [itemTypeId, setItemTypeId] = useState<string>('');
   const [imageUrl, setImageUrl] = useState<string>('');
   
+  // Inventory state
+  const [availableSizes, setAvailableSizes] = useState<Size[]>([]);
+  const [inventory, setInventory] = useState<Map<number, number>>(new Map());  // Map of sizeId to quantity
+  
   // Form metadata
   const [itemTypes, setItemTypes] = useState<ItemType[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [isFetchingRelatedData, setIsFetchingRelatedData] = useState<boolean>(false);
   
-  // Load item types and initialize form data on component mount
+  // Load data and initialize form on component mount
   useEffect(() => {
-    // Fetch item types
-    const fetchItemTypes = async () => {
+    const fetchData = async () => {
+      setIsFetchingRelatedData(true);
       try {
-        const types = await itemTypeApi.getAll();
+        // Fetch item types and sizes in parallel
+        const [types, allSizes] = await Promise.all([
+          itemTypeApi.getAll(),
+          sizeApi.getAll()
+        ]);
+        
         setItemTypes(types);
+        
+        // Initialize form data if in edit mode
+        if (mode === 'edit' && initialData) {
+          setName(initialData.name);
+          setDescription(initialData.description || '');
+          setPrice(initialData.price.toString());
+          setItemTypeId(initialData.itemTypeId.toString());
+          setImageUrl(initialData.imageUrl || '');
+          
+          // Fetch available sizes for this item type
+          try {
+            const itemTypeWithSizes = await itemTypeApi.getById(initialData.itemTypeId);
+            setAvailableSizes(itemTypeWithSizes.sizes || []);
+            
+            // Initialize inventory if available
+            if ('availability' in initialData && initialData.availability) {
+              const invMap = new Map<number, number>();
+              initialData.availability.forEach(item => {
+                invMap.set(item.sizeId, item.quantityInStock);
+              });
+              setInventory(invMap);
+            }
+          } catch (err) {
+            console.error('Error fetching item type sizes:', err);
+          }
+        }
       } catch (err) {
-        console.error('Error fetching item types:', err);
-        setError('Failed to load item types. Please try again later.');
+        console.error('Error fetching form data:', err);
+        setError('Failed to load form data. Please try again later.');
+      } finally {
+        setIsFetchingRelatedData(false);
       }
     };
     
-    // Initialize form data if in edit mode
-    if (mode === 'edit' && initialData) {
-      setName(initialData.name);
-      setDescription(initialData.description || '');
-      setPrice(initialData.price.toString());
-      setItemTypeId(initialData.itemTypeId.toString());
-      setImageUrl(initialData.imageUrl || '');
-    }
-    
-    fetchItemTypes();
+    fetchData();
   }, [mode, initialData]);
+  
+  // Update available sizes when item type changes
+  useEffect(() => {
+    if (itemTypeId) {
+      const fetchSizes = async () => {
+        try {
+          const typeId = parseInt(itemTypeId);
+          if (!isNaN(typeId)) {
+            const itemTypeWithSizes = await itemTypeApi.getById(typeId);
+            setAvailableSizes(itemTypeWithSizes.sizes || []);
+            
+            // Reset inventory when item type changes
+            if (mode === 'create') {
+              setInventory(new Map());
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching item type sizes:', err);
+        }
+      };
+      
+      fetchSizes();
+    }
+  }, [itemTypeId, mode]);
   
   // Form validation
   const validateForm = (): boolean => {
@@ -74,6 +127,20 @@ const ItemsForm: React.FC<ItemsFormProps> = ({ mode, initialData, onSubmitSucces
     return true;
   };
   
+  // Handle inventory quantity change
+  const handleInventoryChange = (sizeId: number, quantity: string) => {
+    const newInventory = new Map(inventory);
+    const parsedQuantity = parseInt(quantity);
+    
+    if (!isNaN(parsedQuantity) && parsedQuantity >= 0) {
+      newInventory.set(sizeId, parsedQuantity);
+    } else {
+      newInventory.delete(sizeId);
+    }
+    
+    setInventory(newInventory);
+  };
+  
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,12 +162,60 @@ const ItemsForm: React.FC<ItemsFormProps> = ({ mode, initialData, onSubmitSucces
     setIsSubmitting(true);
     
     try {
+      let itemId: number;
+      
       if (mode === 'create') {
         // Create new item
-        await itemApi.create(itemData);
+        const newItem = await itemApi.create(itemData);
+        itemId = newItem.id;
       } else if (mode === 'edit' && initialData) {
         // Update existing item
         await itemApi.update(initialData.id, itemData);
+        itemId = initialData.id;
+      } else {
+        throw new Error('Invalid form state');
+      }
+      
+      // Update inventory for each size
+      const updatePromises: Promise<void>[] = [];
+      
+      if (mode === 'edit' && 'availability' in initialData && initialData.availability) {
+        // For existing item, compare with previous inventory and update
+        const currentInventory = new Map<number, ItemAvailability>();
+        initialData.availability.forEach(item => {
+          currentInventory.set(item.sizeId, item);
+        });
+        
+        // Process each size in the inventory
+        for (const [sizeId, quantity] of inventory.entries()) {
+          if (currentInventory.has(sizeId)) {
+            // Update existing inventory
+            if (currentInventory.get(sizeId)!.quantityInStock !== quantity) {
+              updatePromises.push(itemApi.updateInventory(itemId, sizeId, quantity));
+            }
+          } else {
+            // Create new inventory
+            updatePromises.push(itemApi.createInventory(itemId, sizeId, quantity));
+          }
+        }
+        
+        // Handle removed inventory (not in new inventory but was in old)
+        currentInventory.forEach((_, sizeId) => {
+          if (!inventory.has(sizeId)) {
+            // Set quantity to 0 for removed sizes
+            updatePromises.push(itemApi.updateInventory(itemId, sizeId, 0));
+          }
+        });
+      } else if (mode === 'create') {
+        // For new item, create inventory for each size
+        for (const [sizeId, quantity] of inventory.entries()) {
+          updatePromises.push(itemApi.createInventory(itemId, sizeId, quantity));
+        }
+      }
+      
+      // Wait for all inventory updates to complete
+      if (updatePromises.length > 0) {
+        await Promise.all(updatePromises);
       }
       
       // Notify parent component of success
@@ -235,6 +350,69 @@ const ItemsForm: React.FC<ItemsFormProps> = ({ mode, initialData, onSubmitSucces
           </div>
         )}
       </div>
+      
+      {/* Inventory Management Section */}
+      {itemTypeId && (
+        <div className="form-group" style={{ marginTop: '1.5rem' }}>
+          <label>Inventory by Size</label>
+          
+          {isFetchingRelatedData ? (
+            <progress></progress>
+          ) : availableSizes.length > 0 ? (
+            <div style={{ 
+              border: '1px solid var(--form-element-border-color)',
+              borderRadius: 'var(--border-radius)',
+              padding: '1rem',
+              marginTop: '0.5rem'
+            }}>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '1fr 1fr',
+                gap: '1rem'
+              }}>
+                {availableSizes.map(size => (
+                  <div key={size.id} style={{ marginBottom: '0.5rem' }}>
+                    <label htmlFor={`inventory-${size.id}`}>
+                      {size.name}
+                    </label>
+                    <input 
+                      type="number" 
+                      id={`inventory-${size.id}`}
+                      min="0"
+                      value={inventory.has(size.id) ? inventory.get(size.id) : ''}
+                      onChange={(e) => handleInventoryChange(size.id, e.target.value)}
+                      placeholder="0"
+                    />
+                  </div>
+                ))}
+              </div>
+              
+              <div style={{ 
+                marginTop: '0.5rem',
+                padding: '0.5rem',
+                backgroundColor: 'var(--card-background-color)',
+                borderRadius: 'var(--border-radius)',
+                fontSize: '0.9em'
+              }}>
+                <p style={{ margin: '0' }}>
+                  <strong>Note:</strong> Leave quantity empty or set to 0 for sizes not in stock.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div style={{ 
+              padding: '1rem',
+              backgroundColor: 'var(--card-background-color)',
+              borderRadius: 'var(--border-radius)',
+              marginTop: '0.5rem'
+            }}>
+              <p style={{ margin: '0' }}>
+                No sizes are available for this item type. You can add sizes in the Item Types management page.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
       
       {/* Form Actions */}
       <div className="form-actions" style={{ 

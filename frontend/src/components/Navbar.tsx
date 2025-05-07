@@ -34,7 +34,24 @@ const Navbar: React.FC = () => {
               <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
             </svg>
             {totalQuantity() > 0 && (
-              <span className="cart-count">{totalQuantity()}</span>
+              <span style={{
+                position: 'absolute',
+                top: '-8px',
+                right: '-8px',
+                backgroundColor: '#1095c1', /* Using a solid color instead of CSS variable */
+                color: 'white',
+                borderRadius: '50%',
+                width: '18px',
+                height: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+              }}>
+                {totalQuantity()}
+              </span>
             )}
           </a>
         </li>

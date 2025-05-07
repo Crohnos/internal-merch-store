@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import StoreCart from './components/StoreCart';
+import { Toaster } from 'react-hot-toast';
 import HomePage from './pages/HomePage';
 import StorePage from './pages/StorePage';
 import CheckoutPage from './pages/CheckoutPage';
@@ -52,6 +53,32 @@ const App: React.FC = () => {
         
         {/* Shopping Cart */}
         <StoreCart />
+        
+        {/* Toast Notifications */}
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            style: {
+              background: 'var(--card-background-color)',
+              color: 'var(--color)',
+              border: '1px solid var(--muted-border-color)',
+              padding: '16px',
+              borderRadius: 'var(--border-radius)'
+            },
+            success: {
+              iconTheme: {
+                primary: 'var(--form-element-valid-focus-color)',
+                secondary: 'white',
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: 'var(--form-element-invalid-focus-color)',
+                secondary: 'white',
+              },
+            }
+          }}
+        />
       </div>
     </BrowserRouter>
   );

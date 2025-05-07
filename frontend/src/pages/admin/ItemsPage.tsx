@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { itemApi, itemTypeApi } from '../../services/api';
-import { Item, ItemType } from '../../types/api';
+import { itemApi, itemTypeApi, sizeApi } from '../../services/api';
+import { Item, ItemType, ItemWithAvailability, Size, ItemAvailability } from '../../types/api';
 import AdminModal from '../../components/admin/AdminModal';
 
 const ItemsPage: React.FC = () => {
   // State for items and item types
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<ItemWithAvailability[]>([]);
   const [itemTypes, setItemTypes] = useState<ItemType[]>([]);
+  const [sizes, setSizes] = useState<Size[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -14,8 +15,8 @@ const ItemsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedType, setSelectedType] = useState<number | 'all'>('all');
   
-  // State for modal (to be implemented in step 14)
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  // State for modal
+  const [selectedItem, setSelectedItem] = useState<ItemWithAvailability | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   
@@ -26,14 +27,16 @@ const ItemsPage: React.FC = () => {
         setLoading(true);
         setError(null);
         
-        // Fetch items and item types in parallel
-        const [itemsData, itemTypesData] = await Promise.all([
-          itemApi.getAll(),
-          itemTypeApi.getAll()
+        // Fetch items, item types, and sizes in parallel
+        const [itemsData, itemTypesData, sizesData] = await Promise.all([
+          itemApi.getAllWithInventory(),
+          itemTypeApi.getAll(),
+          sizeApi.getAll()
         ]);
         
         setItems(itemsData);
         setItemTypes(itemTypesData);
+        setSizes(sizesData);
       } catch (err) {
         console.error('Error fetching items data:', err);
         setError('Failed to load items. Please try again later.');
@@ -82,6 +85,12 @@ const ItemsPage: React.FC = () => {
   const getItemTypeName = (typeId: number): string => {
     const itemType = itemTypes.find(t => t.id === typeId);
     return itemType ? itemType.name : 'Unknown';
+  };
+  
+  // Get size name by ID
+  const getSizeName = (sizeId: number): string => {
+    const size = sizes.find(s => s.id === sizeId);
+    return size ? size.name : 'Unknown';
   };
   
   // Render loading state
@@ -161,13 +170,14 @@ const ItemsPage: React.FC = () => {
               <th>Type</th>
               <th>Price</th>
               <th>Image</th>
+              <th>Inventory</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredItems.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center' }}>
+                <td colSpan={7} style={{ textAlign: 'center' }}>
                   No items found. Try adjusting your filters.
                 </td>
               </tr>
@@ -187,6 +197,46 @@ const ItemsPage: React.FC = () => {
                       />
                     ) : (
                       <span>No image</span>
+                    )}
+                  </td>
+                  <td>
+                    {item.availability && item.availability.length > 0 ? (
+                      <div style={{ fontSize: '0.9em' }}>
+                        {item.availability.map(stock => {
+                          // Find size name
+                          const sizeName = getSizeName(stock.sizeId);
+                          const stockLevel = stock.quantityInStock;
+                          
+                          // Determine stock level indicator color
+                          const stockColor = 
+                            stockLevel <= 0 ? 'var(--form-element-invalid-active-border-color)' : // Red for out of stock
+                            stockLevel < 5 ? 'var(--form-element-invalid-focus-color)' : // Orange for low stock
+                            'var(--form-element-valid-focus-color)'; // Green for in stock
+                          
+                          return (
+                            <div 
+                              key={stock.sizeId} 
+                              style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between',
+                                marginBottom: '0.25rem',
+                                padding: '0.25rem 0.5rem',
+                                borderRadius: 'var(--border-radius)',
+                                backgroundColor: 'var(--card-background-color)'
+                              }}
+                            >
+                              <span><strong>{sizeName}:</strong></span>
+                              <span style={{ color: stockColor }}>
+                                {stockLevel <= 0 ? 'Out of stock' : 
+                                 stockLevel < 5 ? `${stockLevel} (Low)` : 
+                                 stockLevel}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <span>No inventory data</span>
                     )}
                   </td>
                   <td>
@@ -216,7 +266,7 @@ const ItemsPage: React.FC = () => {
           // Refetch items after successful submission
           const fetchItems = async () => {
             try {
-              const itemsData = await itemApi.getAll();
+              const itemsData = await itemApi.getAllWithInventory();
               setItems(itemsData);
             } catch (err) {
               console.error('Error refetching items:', err);

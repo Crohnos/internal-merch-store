@@ -21,6 +21,9 @@ router.put('/:id', itemAvailabilityController.update);
 // PATCH /api/item-availability/stock/:itemId/:sizeId - Update stock quantity
 router.patch('/stock/:itemId/:sizeId', itemAvailabilityController.updateStock);
 
+// PUT /api/item-availability - Update inventory by item and size
+router.put('/', itemAvailabilityController.updateByItemAndSize);
+
 // DELETE /api/item-availability/:id - Delete availability record
 router.delete('/:id', itemAvailabilityController.delete);
 

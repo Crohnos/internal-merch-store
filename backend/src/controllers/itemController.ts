@@ -7,8 +7,25 @@ export const itemController = {
   // Get all items
   getAll: async (req: Request, res: Response) => {
     try {
+      const includeAvailability = req.query.includeAvailability === 'true';
       const items = await itemService.getAll();
-      res.json(items);
+      
+      if (includeAvailability) {
+        // Get availability for all items
+        const itemsWithAvailability = await Promise.all(
+          items.map(async (item) => {
+            const availability = await itemAvailabilityService.getByItemId(item.id);
+            return {
+              ...item,
+              availability
+            };
+          })
+        );
+        
+        res.json(itemsWithAvailability);
+      } else {
+        res.json(items);
+      }
     } catch (error) {
       console.error('Error getting items:', error);
       res.status(500).json({ error: 'Failed to get items' });

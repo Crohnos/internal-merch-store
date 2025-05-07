@@ -75,6 +75,19 @@ export interface Order {
   user?: User; // For display
 }
 
+// Role interfaces
+export interface Permission {
+  id: number;
+  action: string;
+  description?: string;
+}
+
+export interface Role {
+  id: number;
+  name: string;
+  permissions?: Permission[];
+}
+
 // API response interfaces
 export interface ApiResponse<T> {
   data: T;

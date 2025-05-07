@@ -49,17 +49,74 @@ export const orderService = {
     });
   },
 
-  // Get order lines for an order
+  // Get order lines for an order with item and size details
   getOrderLines: (orderId: number): Promise<OrderLine[]> => {
     return new Promise((resolve, reject) => {
-      const query = 'SELECT * FROM OrderLines WHERE orderId = ?';
+      const query = `
+        SELECT ol.*, 
+               i.name as itemName, i.description as itemDescription, i.price as itemPrice, i.imageUrl as itemImageUrl,
+               s.name as sizeName
+        FROM OrderLines ol
+        LEFT JOIN Items i ON ol.itemId = i.id
+        LEFT JOIN Sizes s ON ol.sizeId = s.id
+        WHERE ol.orderId = ?
+      `;
       
-      db.all(query, [orderId], (err, rows) => {
+      interface OrderLineRow {
+        id: number;
+        orderId: number;
+        itemId: number;
+        sizeId: number;
+        quantity: number;
+        priceAtTimeOfOrder: number;
+        itemName?: string;
+        itemDescription?: string;
+        itemPrice?: number;
+        itemImageUrl?: string;
+        sizeName?: string;
+      }
+      
+      db.all(query, [orderId], (err, rows: OrderLineRow[]) => {
         if (err) {
           reject(err);
           return;
         }
-        resolve(rows as OrderLine[]);
+        
+        // Transform rows to include item and size objects
+        const orderLines = rows.map((row) => {
+          const orderLine: OrderLine = {
+            id: row.id,
+            orderId: row.orderId,
+            itemId: row.itemId,
+            sizeId: row.sizeId,
+            quantity: row.quantity,
+            priceAtTimeOfOrder: row.priceAtTimeOfOrder
+          };
+          
+          // Add item details if available
+          if (row.itemName) {
+            orderLine.item = {
+              id: row.itemId,
+              name: row.itemName,
+              description: row.itemDescription || '',
+              price: row.itemPrice || 0,
+              imageUrl: row.itemImageUrl || '',
+              itemTypeId: 0 // We don't need this for display
+            };
+          }
+          
+          // Add size details if available
+          if (row.sizeName) {
+            orderLine.size = {
+              id: row.sizeId,
+              name: row.sizeName
+            };
+          }
+          
+          return orderLine;
+        });
+        
+        resolve(orderLines);
       });
     });
   },

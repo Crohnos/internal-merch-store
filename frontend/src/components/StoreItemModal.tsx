@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { itemApi, itemTypeApi, sizeApi, itemAvailabilityApi } from '../services/api';
 import { Item, Size, ItemAvailability } from '../types/api';
 import useCartStore from '../store/cartStore';
+import toast from 'react-hot-toast';
 
 interface StoreItemModalProps {
   itemId: number | null;
@@ -19,7 +20,6 @@ const StoreItemModal: React.FC<StoreItemModalProps> = ({ itemId, onClose }) => {
   const [selectedSizeId, setSelectedSizeId] = useState<number | ''>('');
   const [quantity, setQuantity] = useState<number>(1);
   const [addingToCart, setAddingToCart] = useState<boolean>(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
   // Get the addItem function from cart store
   const addItem = useCartStore(state => state.addItem);
@@ -91,15 +91,16 @@ const StoreItemModal: React.FC<StoreItemModalProps> = ({ itemId, onClose }) => {
     
     try {
       addItem(item, selectedSize, quantity);
-      setSuccessMessage('Item added to cart!');
       
-      // Close the modal after a short delay
-      setTimeout(() => {
-        onClose();
-      }, 1500);
+      // Show toast notification
+      toast.success(`${item.name} added to cart!`);
+      
+      // Close the modal immediately
+      onClose();
     } catch (err) {
       console.error('Error adding item to cart:', err);
       setError('Failed to add item to cart. Please try again.');
+      toast.error('Failed to add item to cart');
     } finally {
       setAddingToCart(false);
     }
@@ -110,46 +111,39 @@ const StoreItemModal: React.FC<StoreItemModalProps> = ({ itemId, onClose }) => {
   
   return (
     <div className="modal-backdrop" onClick={onClose} style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000
-    }}>
-      <dialog open onClick={e => e.stopPropagation()} style={{
-        width: '90%',
-        maxWidth: '500px',
-        padding: 0,
-        borderRadius: 'var(--border-radius)',
-        maxHeight: '90vh',
-        overflowY: 'auto',
-        zIndex: 1001
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000
       }}>
-        {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center' }}>
-            <progress></progress>
-          </div>
-        ) : error && !successMessage ? (
-          <article style={{ margin: 0 }}>
-            <header>
-              <h3>Error</h3>
-              <button onClick={onClose} className="close">&times;</button>
-            </header>
-            <p>{error}</p>
-          </article>
-        ) : successMessage ? (
-          <article style={{ margin: 0 }}>
-            <header>
-              <h3>Success</h3>
-            </header>
-            <p>{successMessage}</p>
-          </article>
-        ) : item ? (
+        <dialog open onClick={e => e.stopPropagation()} style={{
+          width: '90%',
+          maxWidth: '500px',
+          padding: 0,
+          borderRadius: 'var(--border-radius)',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          zIndex: 1001
+        }}>
+          {loading ? (
+            <div style={{ padding: '2rem', textAlign: 'center' }}>
+              <progress></progress>
+            </div>
+          ) : error ? (
+            <article style={{ margin: 0 }}>
+              <header>
+                <h3>Error</h3>
+                <button onClick={onClose} className="close">&times;</button>
+              </header>
+              <p>{error}</p>
+            </article>
+          ) : item ? (
           <article style={{ margin: 0 }}>
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3>{item.name}</h3>
