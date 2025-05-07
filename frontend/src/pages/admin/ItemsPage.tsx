@@ -56,8 +56,8 @@ const ItemsPage: React.FC = () => {
   };
   
   // Open modal for editing an item
-  const handleEditClick = (item: Item) => {
-    setSelectedItem(item);
+  const handleEditClick = (item: ItemWithAvailability | Item) => {
+    setSelectedItem(item as ItemWithAvailability);
     setModalMode('edit');
     setIsModalOpen(true);
   };

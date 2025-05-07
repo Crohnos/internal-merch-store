@@ -179,7 +179,7 @@ const ItemsForm: React.FC<ItemsFormProps> = ({ mode, initialData, onSubmitSucces
       // Update inventory for each size
       const updatePromises: Promise<void>[] = [];
       
-      if (mode === 'edit' && 'availability' in initialData && initialData.availability) {
+      if (mode === 'edit' && initialData && 'availability' in initialData && initialData.availability) {
         // For existing item, compare with previous inventory and update
         const currentInventory = new Map<number, ItemAvailability>();
         initialData.availability.forEach(item => {

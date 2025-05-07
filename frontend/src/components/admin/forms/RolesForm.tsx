@@ -53,7 +53,7 @@ const RolesForm: React.FC<RolesFormProps> = ({ mode, initialData, onSubmitSucces
           try {
             const roleWithPermissions = await roleApi.getById(initialData.id);
             if (roleWithPermissions.permissions) {
-              const selectedIds = roleWithPermissions.permissions.map(p => p.id);
+              const selectedIds = roleWithPermissions.permissions.map((p: Permission) => p.id);
               setSelectedPermissions(selectedIds);
             }
           } catch (err) {

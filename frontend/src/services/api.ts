@@ -6,7 +6,9 @@ import {
   Size, 
   ItemAvailability,
   Order,
-  User
+  User,
+  Role,
+  Permission
 } from '../types/api';
 
 // Create axios instance with base URL
