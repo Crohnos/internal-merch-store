@@ -26,52 +26,82 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
   return (
     <div className="cart-item" style={{
       display: 'grid', 
-      gridTemplateColumns: '80px 1fr auto',
+      gridTemplateColumns: '100px 2fr 1fr 1fr auto',
       gap: '1rem',
       alignItems: 'center',
-      margin: '0.5rem 0'
+      margin: '0.8rem 0',
+      background: 'white',
+      padding: '1rem',
+      borderRadius: 'var(--border-radius)',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
     }}>
       {/* Item Image */}
       <img 
-        src={item.imageUrl || 'https://placehold.co/80x80?text=No+Image'} 
+        src={item.imageUrl || 'https://placehold.co/100x100?text=No+Image'} 
         alt={item.name}
         style={{ 
-          width: '80px', 
-          height: '80px', 
+          width: '100px', 
+          height: '100px', 
           objectFit: 'cover',
-          borderRadius: 'var(--border-radius)'
+          borderRadius: 'var(--border-radius)',
+          border: '1px solid #f0f0f0'
         }}
       />
       
-      {/* Item Details */}
-      <div>
-        <strong>{item.name}</strong>
-        <div style={{ fontSize: '0.9rem' }}>
-          <div>Size: {item.size.name}</div>
-          <div>${item.price.toFixed(2)} each</div>
-        </div>
-        
-        {/* Quantity Dropdown */}
-        <div style={{ marginTop: '0.5rem' }}>
-          <select 
-            value={item.quantity} 
-            onChange={handleQuantityChange}
-            style={{ width: '80px', padding: '0.25rem' }}
-          >
-            {[...Array(10)].map((_, i) => (
-              <option key={i + 1} value={i + 1}>{i + 1}</option>
-            ))}
-          </select>
+      {/* Item Name and Details */}
+      <div style={{ padding: '0 0.5rem' }}>
+        <h5 style={{ margin: '0 0 0.5rem 0' }}>{item.name}</h5>
+        <div style={{ color: 'var(--muted-color)', fontSize: '0.9rem' }}>
+          Size: {item.size.name}
         </div>
       </div>
       
-      {/* Item Price and Remove Button */}
+      {/* Unit Price */}
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: '0.8rem', color: 'var(--muted-color)', marginBottom: '0.25rem' }}>
+          Unit Price
+        </div>
+        <div>${item.price.toFixed(2)}</div>
+      </div>
+
+      {/* Quantity Dropdown */}
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: '0.8rem', color: 'var(--muted-color)', marginBottom: '0.25rem' }}>
+          Quantity
+        </div>
+        <select 
+          value={item.quantity} 
+          onChange={handleQuantityChange}
+          style={{ 
+            width: '80px', 
+            padding: '0.25rem',
+            background: 'white',
+            color: 'black',
+            textAlign: 'center'
+          }}
+        >
+          {[...Array(10)].map((_, i) => (
+            <option key={i + 1} value={i + 1}>{i + 1}</option>
+          ))}
+        </select>
+      </div>
+      
+      {/* Item Total Price and Remove Button */}
       <div style={{ textAlign: 'right' }}>
-        <div>${lineTotal.toFixed(2)}</div>
+        <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>
+          ${lineTotal.toFixed(2)}
+        </div>
         <button 
-          className="secondary outline" 
           onClick={handleRemove}
-          style={{ padding: '0.25rem 0.5rem', marginTop: '0.5rem' }}
+          style={{ 
+            padding: '0.25rem 0.5rem', 
+            background: 'none',
+            color: 'var(--muted-color)',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '0.9rem',
+            textDecoration: 'underline',
+          }}
         >
           Remove
         </button>
