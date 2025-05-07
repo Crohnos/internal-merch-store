@@ -9,6 +9,9 @@ router.get('/', itemTypeController.getAll);
 // GET /api/item-types/:id - Get item type by id
 router.get('/:id', itemTypeController.getById);
 
+// GET /api/item-types/:id/sizes - Get sizes for an item type
+router.get('/:id/sizes', itemTypeController.getSizes);
+
 // POST /api/item-types - Create new item type
 router.post('/', itemTypeController.create);
 

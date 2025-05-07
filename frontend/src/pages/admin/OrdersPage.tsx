@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { orderApi } from '../../services/api';
 import { Order } from '../../types/api';
+import OrderDetailsModal from '../../components/admin/OrderDetailsModal';
 
 const OrdersPage: React.FC = () => {
   // State for orders
@@ -12,8 +13,8 @@ const OrdersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   
-  // State for modals (to be implemented in step 14)
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  // State for order details modal
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   
   // Fetch orders on component mount
@@ -38,8 +39,10 @@ const OrdersPage: React.FC = () => {
   
   // Open order details modal
   const handleViewClick = (order: Order) => {
-    setSelectedOrder(order);
-    setIsModalOpen(true);
+    if (order.id) {
+      setSelectedOrderId(order.id);
+      setIsModalOpen(true);
+    }
   };
   
   // Filter orders
@@ -164,7 +167,24 @@ const OrdersPage: React.FC = () => {
         </table>
       </div>
       
-      {/* Modal will be added in Step 14 */}
+      {/* Order Details Modal */}
+      <OrderDetailsModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          // Refresh orders list when modal is closed
+          const fetchOrders = async () => {
+            try {
+              const ordersData = await orderApi.getAll();
+              setOrders(ordersData);
+            } catch (err) {
+              console.error('Error refetching orders:', err);
+            }
+          };
+          fetchOrders();
+        }}
+        orderId={selectedOrderId}
+      />
     </div>
   );
 };
