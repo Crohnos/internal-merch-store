@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { roleApi } from '../../../services/api';
-import { Role } from '../../../types/api';
+import { roleApi, permissionApi } from '../../../services/api';
+import { Role, Permission } from '../../../types/api';
 
 interface RolesFormProps {
   mode: 'create' | 'edit';
@@ -11,16 +11,58 @@ interface RolesFormProps {
 const RolesForm: React.FC<RolesFormProps> = ({ mode, initialData, onSubmitSuccess }) => {
   // Form state
   const [name, setName] = useState<string>('');
+  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [selectedPermissions, setSelectedPermissions] = useState<number[]>([]);
   
   // Form metadata
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [permissionsLoading, setPermissionsLoading] = useState<boolean>(true);
+  
+  // Fetch all available permissions on component mount
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      try {
+        setPermissionsLoading(true);
+        const perms = await permissionApi.getAll();
+        setPermissions(perms);
+      } catch (err) {
+        console.error('Error fetching permissions:', err);
+        setError('Failed to load permissions. Please try again.');
+      } finally {
+        setPermissionsLoading(false);
+      }
+    };
+    
+    fetchPermissions();
+  }, []);
   
   // Initialize form data on component mount if in edit mode
   useEffect(() => {
     if (mode === 'edit' && initialData) {
       setName(initialData.name);
+      
+      // Initialize selected permissions if available
+      if (initialData.permissions) {
+        const selectedIds = initialData.permissions.map(p => p.id);
+        setSelectedPermissions(selectedIds);
+      } else {
+        // If permissions not included in initialData, fetch them
+        const fetchRolePermissions = async () => {
+          try {
+            const roleWithPermissions = await roleApi.getById(initialData.id);
+            if (roleWithPermissions.permissions) {
+              const selectedIds = roleWithPermissions.permissions.map(p => p.id);
+              setSelectedPermissions(selectedIds);
+            }
+          } catch (err) {
+            console.error('Error fetching role permissions:', err);
+          }
+        };
+        
+        fetchRolePermissions();
+      }
     }
   }, [mode, initialData]);
   
@@ -38,6 +80,17 @@ const RolesForm: React.FC<RolesFormProps> = ({ mode, initialData, onSubmitSucces
     return true;
   };
   
+  // Handle permission selection change
+  const handlePermissionChange = (permissionId: number, isChecked: boolean) => {
+    if (isChecked) {
+      // Add permission to selected list
+      setSelectedPermissions(prev => [...prev, permissionId]);
+    } else {
+      // Remove permission from selected list
+      setSelectedPermissions(prev => prev.filter(id => id !== permissionId));
+    }
+  };
+  
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,12 +106,49 @@ const RolesForm: React.FC<RolesFormProps> = ({ mode, initialData, onSubmitSucces
     setIsSubmitting(true);
     
     try {
+      let roleId: number;
+      
       if (mode === 'create') {
         // Create new role
-        await roleApi.create(roleData);
+        const newRole = await roleApi.create(roleData);
+        roleId = newRole.id;
       } else if (mode === 'edit' && initialData) {
         // Update existing role
         await roleApi.update(initialData.id, roleData);
+        roleId = initialData.id;
+      } else {
+        throw new Error('Invalid form mode');
+      }
+      
+      // Update role permissions
+      if (mode === 'edit' && initialData && initialData.permissions) {
+        // Get current permission IDs
+        const currentPermissionIds = initialData.permissions.map(p => p.id);
+        
+        // Find permissions to add
+        const permissionsToAdd = selectedPermissions.filter(
+          id => !currentPermissionIds.includes(id)
+        );
+        
+        // Find permissions to remove
+        const permissionsToRemove = currentPermissionIds.filter(
+          id => !selectedPermissions.includes(id)
+        );
+        
+        // Add new permissions
+        for (const permId of permissionsToAdd) {
+          await roleApi.addPermission(roleId, permId);
+        }
+        
+        // Remove removed permissions
+        for (const permId of permissionsToRemove) {
+          await roleApi.removePermission(roleId, permId);
+        }
+      } else if (mode === 'create') {
+        // Add all selected permissions to new role
+        for (const permId of selectedPermissions) {
+          await roleApi.addPermission(roleId, permId);
+        }
       }
       
       // Notify parent component of success
@@ -121,11 +211,37 @@ const RolesForm: React.FC<RolesFormProps> = ({ mode, initialData, onSubmitSucces
         <small>e.g., "Admin", "Employee", "Manager"</small>
       </div>
       
+      {/* Permissions Section */}
+      <div className="form-group" style={{ marginTop: '1.5rem' }}>
+        <label>Permissions</label>
+        
+        {permissionsLoading ? (
+          <progress></progress>
+        ) : (
+          <fieldset style={{ marginTop: '0.5rem' }}>
+            <legend>Select permissions for this role:</legend>
+            
+            {permissions.map(permission => (
+              <label key={permission.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <input 
+                  type="checkbox" 
+                  checked={selectedPermissions.includes(permission.id)}
+                  onChange={(e) => handlePermissionChange(permission.id, e.target.checked)}
+                />
+                <span style={{ marginLeft: '0.5rem' }}>
+                  <strong>{permission.action}</strong> - {permission.description}
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        )}
+      </div>
+      
       {/* Form Actions */}
       <div className="form-actions" style={{ 
         display: 'flex', 
         justifyContent: mode === 'edit' ? 'space-between' : 'flex-end',
-        marginTop: '1rem'
+        marginTop: '1.5rem'
       }}>
         {mode === 'edit' && (
           <button 
@@ -142,7 +258,7 @@ const RolesForm: React.FC<RolesFormProps> = ({ mode, initialData, onSubmitSucces
         <button 
           type="submit" 
           className="primary" 
-          disabled={isSubmitting || isDeleting}
+          disabled={isSubmitting || isDeleting || permissionsLoading}
           aria-busy={isSubmitting}
         >
           {isSubmitting ? 'Saving...' : mode === 'create' ? 'Create Role' : 'Save Changes'}

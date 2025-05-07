@@ -2,6 +2,9 @@ import React from 'react';
 import ItemsForm from './forms/ItemsForm';
 import UsersForm from './forms/UsersForm';
 import RolesForm from './forms/RolesForm';
+import LocationsForm from './forms/LocationsForm';
+import SizesForm from './forms/SizesForm';
+import ItemTypesForm from './forms/ItemTypesForm';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -26,7 +29,13 @@ const AdminModal: React.FC<AdminModalProps> = ({
   // Determine title based on mode and entity type
   const getTitle = (): string => {
     const action = mode === 'create' ? 'Create' : 'Edit';
-    const entity = entityType.charAt(0).toUpperCase() + entityType.slice(1);
+    let entity = entityType.charAt(0).toUpperCase() + entityType.slice(1);
+    
+    // Special formatting for certain entity types
+    if (entityType === 'itemType') {
+      entity = 'Item Type';
+    }
+    
     return `${action} ${entity}`;
   };
   
@@ -52,6 +61,30 @@ const AdminModal: React.FC<AdminModalProps> = ({
       case 'role':
         return (
           <RolesForm 
+            mode={mode} 
+            initialData={entityData} 
+            onSubmitSuccess={onSubmitSuccess} 
+          />
+        );
+      case 'location':
+        return (
+          <LocationsForm 
+            mode={mode} 
+            initialData={entityData} 
+            onSubmitSuccess={onSubmitSuccess} 
+          />
+        );
+      case 'size':
+        return (
+          <SizesForm 
+            mode={mode} 
+            initialData={entityData} 
+            onSubmitSuccess={onSubmitSuccess} 
+          />
+        );
+      case 'itemType':
+        return (
+          <ItemTypesForm 
             mode={mode} 
             initialData={entityData} 
             onSubmitSuccess={onSubmitSuccess} 

@@ -188,5 +188,48 @@ export const itemAvailabilityController = {
       console.error('Error deleting item availability record:', error);
       res.status(500).json({ error: 'Failed to delete item availability record' });
     }
+  },
+  
+  // Update inventory by item and size directly
+  updateByItemAndSize: async (req: Request, res: Response) => {
+    try {
+      const { itemId, sizeId, quantityInStock } = req.body;
+      
+      if (typeof itemId !== 'number' || typeof sizeId !== 'number' || typeof quantityInStock !== 'number') {
+        return res.status(400).json({ error: 'Invalid request format. Expecting itemId, sizeId, and quantityInStock as numbers.' });
+      }
+      
+      if (quantityInStock < 0) {
+        return res.status(400).json({ error: 'Quantity must be a non-negative number' });
+      }
+      
+      // Check if a record for this item+size already exists
+      const existing = await itemAvailabilityService.getByItemAndSize(itemId, sizeId);
+      
+      if (existing) {
+        // Update existing record
+        const updated = await itemAvailabilityService.updateStock(itemId, sizeId, quantityInStock);
+        
+        if (!updated) {
+          return res.status(400).json({ error: 'Failed to update stock' });
+        }
+        
+        const updatedRecord = await itemAvailabilityService.getByItemAndSize(itemId, sizeId);
+        res.json(updatedRecord);
+      } else {
+        // Create new record
+        const newRecordId = await itemAvailabilityService.create({
+          itemId,
+          sizeId,
+          quantityInStock
+        });
+        
+        const newRecord = await itemAvailabilityService.getById(newRecordId);
+        res.status(201).json(newRecord);
+      }
+    } catch (error) {
+      console.error('Error updating inventory by item and size:', error);
+      res.status(500).json({ error: 'Failed to update inventory' });
+    }
   }
 };

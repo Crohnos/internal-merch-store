@@ -4,6 +4,31 @@ import { sizeService } from '../services/sizeService';
 import { itemTypeSchema } from '../validation/itemValidation';
 
 export const itemTypeController = {
+  // Get sizes for an item type
+  getSizes: async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid ID format' });
+      }
+      
+      // Check if item type exists
+      const itemType = await itemTypeService.getById(id);
+      
+      if (!itemType) {
+        return res.status(404).json({ error: 'Item type not found' });
+      }
+      
+      // Get sizes for this item type
+      const sizes = await sizeService.getSizesByItemType(id);
+      
+      res.json(sizes);
+    } catch (error) {
+      console.error('Error getting sizes for item type:', error);
+      res.status(500).json({ error: 'Failed to get sizes for item type' });
+    }
+  },
   // Get all item types
   getAll: async (req: Request, res: Response) => {
     try {

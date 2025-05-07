@@ -78,6 +78,8 @@ export interface OrderLine {
   sizeId: number;
   quantity: number;
   priceAtTimeOfOrder: number;
+  item?: Item;
+  size?: Size;
 }
 
 // Location interface
