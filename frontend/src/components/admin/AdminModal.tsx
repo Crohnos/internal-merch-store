@@ -115,16 +115,25 @@ const AdminModal: React.FC<AdminModalProps> = ({
         padding: 0,
         borderRadius: 'var(--border-radius)',
         maxHeight: '90vh',
-        overflowY: 'auto',
+        overflowY: 'hidden',
         zIndex: 1001
       }}>
-        <article style={{ margin: 0 }}>
-          <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <article style={{ margin: 0, position: 'relative', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+          <header style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
+            backgroundColor: 'var(--card-background-color)',
+            borderBottom: '1px solid var(--form-element-border-color)'
+          }}>
             <h3>{getTitle()}</h3>
             <button onClick={onClose} className="close">&times;</button>
           </header>
           
-          <div className="form-container" style={{ padding: '1rem 0' }}>
+          <div className="form-container" style={{ padding: '1rem 0', overflowY: 'auto' }}>
             {renderForm()}
           </div>
         </article>
